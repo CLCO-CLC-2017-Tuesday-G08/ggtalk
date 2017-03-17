@@ -1,0 +1,2 @@
+serviceClass: com.example.HelloAppEngine.client.GreetingService
+path: BC772188EB06F30216C0769C58EE8F3E.gwt.rpc

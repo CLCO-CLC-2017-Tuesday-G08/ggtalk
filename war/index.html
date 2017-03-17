@@ -1,0 +1,183 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>channel chat</title>
+    <link rel="stylesheet" href="css/main.css" type="text/css" />
+	<script src='/_ah/channel/jsapi'></script>
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+	<script type="text/javascript" src="lib/spin.min.js"></script>
+</head>
+<script>
+
+	var theChat = null;
+	
+	$(function(){
+		$("#status").text("Connecting ...");
+		$("#send_button").attr('disabled', 'true');
+		sendMessage( createTokenPacket() );		
+		theChat = new chat( $("#chat_area"), $("#editor") );
+		
+		$(window).unload( function() {
+			sendMessage( createLeavePacket() );
+		});
+		
+		showBusyIndicator(true);
+	});
+
+	function sendMessage( pack ) {
+		//$.post( "http://localhost:8888/chat",
+		$.post( "http://channelchatservlet.appspot.com/chat",  
+				pack, receiveMessage );
+	}	
+	
+	function receiveMessage(resp) {
+		if( resp.length == 0 )
+			return;
+			
+		var data = eval("(" + resp + ")");
+		
+		if( data.type == "token" ) {
+			var token = data.token;
+			openChannel(token);	
+			
+			if( data.messages != null ) {
+				for( var i = 0; i < data.messages.length; i++ )
+					theChat.addMessage( data.messages[i] );			
+			}
+		}
+		else if( data.type == "message" ) {
+			theChat.addMessage(data);
+		}
+	}
+	
+	function channelOpened() {
+		showBusyIndicator(false);
+		$("#status").text("Channel opened");
+		$("#send_button").removeAttr("disabled");
+	}
+	
+	function channelMessage( pack ) {
+		receiveMessage( pack.data );
+	}
+	
+	function openChannel(token) {
+    	var channel = new goog.appengine.Channel(token);
+        
+    	var handler = {
+      		'onopen': channelOpened,
+      		'onmessage': channelMessage,
+      		'onerror': function() {},
+      		'onclose': function() {}
+    	};
+    	
+    	var socket = channel.open(handler);
+	}
+	
+	function createTokenPacket() {
+		return {
+			type: "get_token"
+		}
+	}
+	
+	function createLeavePacket() {
+		return {
+			type: "leave"
+		}
+	}
+	
+	function sendPressed() {
+		sendMessage( theChat.getMessage() );
+		$("#editor").val("");
+	}
+	
+	function chat(container, editor) {
+		this.container = container;
+		this.editor = editor;
+		this.loadNewLines = chat.loadNewLines;
+		this.addLine = chat.addLine;
+		this.getMessage = chat.getMessage;
+		this.messages = new Array();
+		this.addMessage = chat.addMessage;
+	}
+
+	chat.loadNewLines = function(lines) {
+		(this.container).empty();
+		for( var i = 0; i < lines.length; i++ ) {
+			(this.container).append( lines[i] + "<br>" );
+		}
+	}
+
+	chat.addLine = function(line) {
+		(this.container).append( line + "<br>" );
+		(this.container[0]).scrollTop = (this.container[0]).scrollHeight;
+	}
+
+	chat.addMessage = function(message) {
+		if( (this.messages).length > 100 ) {
+			(this.messages).shift();
+			(this.container).children(':first-child').remove();
+		}
+
+		(this.messages).push(message);
+
+		var line = message.user + " : " + message.text;
+
+		this.addLine( line );
+	}
+
+	chat.getMessage = function() {
+		var mess = this.editor.val();
+		return { 	type: "message",
+					text: mess };
+	}
+	
+	var busySpinner = null;
+	
+	function showBusyIndicator(val) {
+	
+		if( busySpinner ==  null ) {
+			var opts = {
+				  lines: 11, // The number of lines to draw
+				  length: 7, // The length of each line
+				  width: 8, // The line thickness
+				  radius: 24, // The radius of the inner circle
+				  corners: 1, // Corner roundness (0..1)
+				  rotate: 0, // The rotation offset
+				  color: '#bdf', // #rgb or #rrggbb
+				  speed: 1, // Rounds per second
+				  trail: 60, // Afterglow percentage
+				  shadow: false, // Whether to render a shadow
+				  hwaccel: false, // Whether to use hardware acceleration
+				  className: 'spinner', // The CSS class to assign to the spinner
+				  zIndex: 2e9, // The z-index (defaults to 2000000000)
+				  top: 'auto', // Top position relative to parent in px
+				  left: 'auto' // Left position relative to parent in px
+				};
+		
+			busySpinner = new Spinner(opts);
+		}
+	
+		var target = document.getElementById('chat-wrap');
+
+		if( val )
+			busySpinner.spin(target);
+		else
+			busySpinner.stop();	
+	}
+</script>
+<body>
+	<div id="content">
+		<h1>GAE Chat !!!</h1>
+		<p id="status"></p>
+		<div id="chat-wrap" class="wrap"><div id="chat_area" class="wrap chat_container"></div></div>
+	
+		<chat_control_area>
+			<input type="text" id="editor" class="chat_input" maxlength='150'></input>
+			<input id="send_button" type="button" value="Send" class="chat_button" onClick=sendPressed()></input>
+		</chat_control_area>
+	</div>
+	<br>
+	Example of a GAE Channel - based chat. See source code on <a href="https://github.com/diman4ik/ChannelChatServlet">github</a>.  
+	Download Android <a href="chat_activity.apk" target="_blank">client</a>.
+</body>
+</html>

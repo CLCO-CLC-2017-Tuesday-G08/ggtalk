@@ -1,0 +1,3 @@
+# Module civil_hull_160102
+# RPC service class, partial path of RPC policy file
+com.example.HelloAppEngine.client.GreetingService, BC772188EB06F30216C0769C58EE8F3E.gwt.rpc
